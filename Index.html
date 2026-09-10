@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meu Jogo</title>
+
+<style>
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: #111;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    touch-action: none;
+}
+
+#game {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    overflow: hidden;
+    background: #79b85a;
+}
+
+/* MAPA */
+#map {
+    position: absolute;
+    width: 2000px;
+    height: 2000px;
+    background:
+        linear-gradient(45deg, rgba(255,255,255,.04) 25%, transparent 25%),
+        #79b85a;
+}
+
+/* CAMINHO */
+.road {
+    position: absolute;
+    background: #c9a66b;
+}
+
+.road.horizontal {
+    width: 2000px;
+    height: 120px;
+    top: 900px;
+    left: 0;
+}
+
+.road.vertical {
+    width: 120px;
+    height: 2000px;
+    left: 940px;
+    top: 0;
+}
+
+/* ÁRVORES */
+.tree {
+    position: absolute;
+    width: 55px;
+    height: 55px;
+    background: #246b35;
+    border-radius: 50%;
+    border: 5px solid #174d27;
+}
+
+/* PERSONAGEM */
+#player {
+    position: absolute;
+    width: 42px;
+    height: 58px;
+    z-index: 10;
+}
+
+.head {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    background: #f2c09a;
+    border-radius: 50%;
+    left: 7px;
+    top: 0;
+}
+
+.body {
+    position: absolute;
+    width: 28px;
+    height: 25px;
+    background: #3155a5;
+    left: 7px;
+    top: 27px;
+    border-radius: 5px;
+}
+
+.leg {
+    position: absolute;
+    width: 9px;
+    height: 15px;
+    background: #222;
+    top: 48px;
+    border-radius: 3px;
+}
+
+.leg.left {
+    left: 9px;
+}
+
+.leg.right {
+    right: 9px;
+}
+
+.arm {
+    position: absolute;
+    width: 8px;
+    height: 22px;
+    background: #f2c09a;
+    top: 29px;
+    border-radius: 5px;
+}
+
+.arm.left {
+    left: 0;
+}
+
+.arm.right {
+    right: 0;
+}
+
+/* MOEDA */
+#coin {
+    position: absolute;
+    width: 25px;
+    height: 25px;
+    background: gold;
+    border: 4px solid #d69b00;
+    border-radius: 50%;
+    z-index: 5;
+}
+
+/* HUD */
+#hud {
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 100;
+    color: white;
+    background: rgba(0,0,0,.65);
+    padding: 10px 15px;
+    border-radius: 10px;
+    font-size: 18px;
+}
+
+/* CONTROLES */
+#controls {
+    position: fixed;
+    bottom: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    display: grid;
+    grid-template-columns: 65px 65px 65px;
+    grid-template-rows: 65px 65px;
+    gap: 5px;
+}
+
+button {
+    border: none;
+    border-radius: 15px;
+    background: rgba(0,0,0,.65);
+    color: white;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+button:active {
+    background: rgba(255,255,255,.35);
+}
+
+.up {
+    grid-column: 2;
+}
+
+.left {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.down {
+    grid-column: 2;
+    grid-row: 2;
+}
+
+.right {
+    grid-column: 3;
+    grid-row: 2;
+}
+</style>
+</head>
+
+<body>
+
+<div id="game">
+
+    <div id="map">
+
+        <div class="road horizontal"></div>
+        <div class="road vertical"></div>
+
+        <div class="tree" style="left:300px;top:300px"></div>
+        <div class="tree" style="left:500px;top:500px"></div>
+        <div class="tree" style="left:1400px;top:400px"></div>
+        <div class="tree" style="left:1600px;top:700px"></div>
+        <div class="tree" style="left:400px;top:1400px"></div>
+        <div class="tree" style="left:1500px;top:1500px"></div>
+
+        <div id="coin"></div>
+
+        <div id="player">
+            <div class="head"></div>
+            <div class="body"></div>
+            <div class="arm left"></div>
+            <div class="arm right"></div>
+            <div class="leg left"></div>
+            <div class="leg right"></div>
+        </div>
+
+    </div>
+
+    <div id="hud">
+        🪙 Moedas: <span id="score">0</span>
+    </div>
+
+    <div id="controls">
+        <button class="up" data-dir="up">▲</button>
+        <button class="left" data-dir="left">◀</button>
+        <button class="down" data-dir="down">▼</button>
+        <button class="right" data-dir="right">▶</button>
+    </div>
+
+</div>
+
+<script>
+const player = document.getElementById("player");
+const map = document.getElementById("map");
+const coin = document.getElementById("coin");
+const scoreText = document.getElementById("score");
+
+let x = 960;
+let y = 920;
+let score = 0;
+
+const speed = 5;
+
+let keys = {
+    up: false,
+    down: false,
+    left: false,
+    right: false
+};
+
+function update() {
+
+    if (keys.up) y -= speed;
+    if (keys.down) y += speed;
+    if (keys.left) x -= speed;
+    if (keys.right) x += speed;
+
+    // Limites do mapa
+    x = Math.max(0, Math.min(1950, x));
+    y = Math.max(0, Math.min(1940, y));
+
+    player.style.left = x + "px";
+    player.style.top = y + "px";
+
+    // Câmera seguindo o personagem
+    const cameraX = window.innerWidth / 2 - x - 21;
+    const cameraY = window.innerHeight / 2 - y - 29;
+
+    map.style.transform =
+        `translate(${cameraX}px, ${cameraY}px)`;
+
+    // Pegou a moeda
+    const dx = x - parseInt(coin.style.left || 1000);
+    const dy = y - parseInt(coin.style.top || 850);
+
+    if (Math.abs(dx) < 35 && Math.abs(dy) < 35) {
+        score++;
+        scoreText.textContent = score;
+
+        coin.style.left = Math.floor(Math.random() * 1800) + "px";
+        coin.style.top = Math.floor(Math.random() * 1800) + "px";
+    }
+
+    requestAnimationFrame(update);
+}
+
+// Posição inicial da moeda
+coin.style.left = "1050px";
+coin.style.top = "850px";
+
+// Controles de celular
+document.querySelectorAll("button").forEach(button => {
+
+    const direction = button.dataset.dir;
+
+    button.addEventListener("pointerdown", e => {
+        e.preventDefault();
+        keys[direction] = true;
+    });
+
+    button.addEventListener("pointerup", e => {
+        e.preventDefault();
+        keys[direction] = false;
+    });
+
+    button.addEventListener("pointerleave", () => {
+        keys[direction] = false;
+    });
+
+    button.addEventListener("pointercancel", () => {
+        keys[direction] = false;
+    });
+});
+
+// Teclado
+document.addEventListener("keydown", e => {
+
+    if (e.key === "ArrowUp" || e.key === "w")
+        keys.up = true;
+
+    if (e.key === "ArrowDown" || e.key === "s")
+        keys.down = true;
+
+    if (e.key === "ArrowLeft" || e.key === "a")
+        keys.left = true;
+
+    if (e.key === "ArrowRight" || e.key === "d")
+        keys.right = true;
+});
+
+document.addEventListener("keyup", e => {
+
+    if (e.key === "ArrowUp" || e.key === "w")
+        keys.up = false;
+
+    if (e.key === "ArrowDown" || e.key === "s")
+        keys.down = false;
+
+    if (e.key === "ArrowLeft" || e.key === "a")
+        keys.left = false;
+
+    if (e.key === "ArrowRight" || e.key === "d")
+        keys.right = false;
+});
+
+update();
+</script>
+
+</body>
+</html>
